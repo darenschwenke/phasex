@@ -53,7 +53,7 @@
 int                 audio_driver                = AUDIO_DRIVER_NONE;
 int                 midi_driver                 = MIDI_DRIVER_NONE;
 
-int                 sample_rate_mode_changed    = 0;
+int                 sample_rate_mode_changed    = 1;
 
 char                *audio_driver_name          = "none";
 char                *midi_driver_name           = "none";
@@ -636,11 +636,14 @@ phasex_watchdog(void)
 				select_audio_driver(NULL, setting_audio_driver);
 			}
 			init_audio();
+			PHASEX_DEBUG(DEBUG_CLASS_ENGINE, "Audio initialized.\n");
 			if (sample_rate_changed) {
+				PHASEX_DEBUG(DEBUG_CLASS_ENGINE, "Sample Rate Changed.\n");
 				sample_rate_changed = 0;
 				build_filter_tables();
 				build_env_tables();
 				init_engine_internals();
+				PHASEX_DEBUG(DEBUG_CLASS_ENGINE, "Init Engine.\n");
 				init_engine_parameters();
 				for (part_num = 0; part_num < MAX_PARTS; part_num++) {
 					patch = get_active_patch(part_num);

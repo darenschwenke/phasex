@@ -52,7 +52,10 @@
 #define KEYMODE_MONO_SMOOTH         0
 #define KEYMODE_MONO_RETRIGGER      1
 #define KEYMODE_MONO_MULTIKEY       2
-#define KEYMODE_POLY                3
+#define KEYMODE_MONO_UNISON_4       3
+#define KEYMODE_MONO_UNISON_6       4
+#define KEYMODE_MONO_UNISON_8       5
+#define KEYMODE_POLY                6
 
 /* Filter keyfollow modes */
 #define KEYFOLLOW_NONE              0
@@ -100,7 +103,7 @@ typedef struct voice {
 	short       vol_key;                    /* midi note to use for volume keyfollow */
 	short       osc_wave;                   /* internal value for osc wave num */
 	short       cur_amp_interval;           /* current interval within the envelope */
-	int         id;
+	unsigned int         id;
 	int         cur_amp_sample;             /* sample number within current envelope peice */
 	int         portamento_sample;          /* sample number within portamento */
 	int         portamento_samples;         /* portamento time in samples */
@@ -217,11 +220,11 @@ typedef struct part {
 	sample_t    osc_pitch_bend[NUM_OSCS];   /* current per-osc pitchbend amount */
 	sample_t    osc_phase_adjust[NUM_OSCS]; /* phase adjustment to wavetable index */
 	short       osc_wave[NUM_OSCS];         /* current wave for osc, including wave lfo */
+	short       osc_pan_mod[NUM_OSCS];       /* osc to use as Pan modulator */
 	short       osc_am_mod[NUM_OSCS];       /* osc to use as AM modulator */
 	short       osc_freq_mod[NUM_OSCS];     /* osc to use as FM modulator */
 	short       osc_phase_mod[NUM_OSCS];    /* osc to use as phase modulator */
 	short       lfo_key[NUM_LFOS + 1];      /* current midi note for each lfo */
-	short       _padding2[3];
 	sample_t    lfo_pitch_bend[NUM_LFOS + 1]; /* current per-LFO pitchbend amount */
 	sample_t    lfo_freq[NUM_LFOS + 1];     /* lfo frequency */
 	sample_t    lfo_init_index[NUM_LFOS + 1]; /* initial phase index for LFO waveform */
@@ -254,6 +257,18 @@ typedef struct delay {
 	char        _padding[36];
 	sample_t    buf[(DELAY_MAX) * 2];   /* stereo delay circular buffer */
 } DELAY;
+
+typedef struct reverb {
+	sample_t    size;                   /* length of delay buffer in samples */
+	sample_t    half_size;              /* length of delay buffer in samples */
+	int         write_index;            /* buffer write position */
+	int         read_index;             /* buffer read position (lfo modulated) */
+	int         bufsize;                /* size of delay buffer in samples */
+	int         bufsize_mask;           /* binary mask value for delay bufsize */
+	int         length;                 /* integer length lf delay buffer in samples */
+	char        _padding[36];
+	sample_t    buf[(REVERB_MAX) * 2];   /* stereo delay circular buffer */
+} REVERB;
 
 
 typedef struct chorus {
@@ -314,6 +329,7 @@ extern PART             synth_part[MAX_PARTS];
 extern VOICE            voice_pool[MAX_PARTS][MAX_VOICES];
 extern DELAY            per_part_delay[MAX_PARTS];
 extern CHORUS           per_part_chorus[MAX_PARTS];
+extern REVERB           per_part_reverb[MAX_PARTS];
 extern GLOBAL           global;
 
 extern volatile gint    engine_ready[MAX_PARTS];
@@ -334,6 +350,7 @@ extern sample_t         pitch_bend_smooth_factor;
 #define get_voice(part_num, voice_num)  (&(voice_pool[part_num][voice_num]))
 #define get_delay(part_num)             (&(per_part_delay[part_num]))
 #define get_chorus(part_num)            (&(per_part_chorus[part_num]))
+#define get_reverb(part_num)            (&(per_part_reverb[part_num]))
 
 
 #include "patch.h"
@@ -350,6 +367,7 @@ void run_cycle(unsigned int part_num, unsigned int nframes, sample_t *out1, samp
 /* these functions are internal to the synth engine */
 void run_chorus(CHORUS *this_chorus, PART *part, PATCH_STATE *state);
 void run_delay(DELAY *this_delay, PART *part, PATCH_STATE *state);
+void run_reverb(REVERB *this_reverb, PART *part, PATCH_STATE *state);
 void run_osc(VOICE *voice, PART *part, PATCH_STATE *state, unsigned int osc);
 void run_oscillators(VOICE *voice, PART *part, PATCH_STATE *state);
 void run_voice(VOICE *voice, PART *part, PATCH_STATE *state);

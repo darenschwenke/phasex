@@ -92,7 +92,7 @@ update_keymode(PARAM *param)
 	VOICE           *voice;
 	int             voice_num;
 
-	state->keymode = (short) cc_val & 0x03;
+	state->keymode = (short) cc_val & 0x06;
 
 	/* deactivate voices */
 	for (voice_num = 0; voice_num < MAX_VOICES; voice_num++) {
@@ -191,6 +191,8 @@ update_pan(PARAM *param)
 	int             cc_val  = param->value.cc_val;
 
 	state->pan_cc = (short) cc_val;
+	state->pan_r = (sample_t) pan_table[(127 - cc_val)];
+	state->pan_l = (sample_t) pan_table[cc_val];
 }
 
 /*****************************************************************************
@@ -533,6 +535,112 @@ update_amp_release(PARAM *param)
 	state->amp_release = (short) cc_val;
 }
 
+/*****************************************************************************
+ * update_reverb_bypass()
+ *****************************************************************************/
+void
+update_reverb_bypass(PARAM *param)
+{
+	PATCH_STATE     *state  = param->patch->state;
+	REVERB          *reverb  = get_reverb(param->patch->part_num);
+	int             cc_val  = param->value.cc_val;
+
+	state->reverb_bypass_cc = (short) cc_val;
+
+	if (cc_val == 1) {
+		memset((void *)(reverb->buf), 0, REVERB_MAX * 2 * sizeof(sample_t));
+	}
+}
+
+/*****************************************************************************
+ * update_reverb_mix()
+ *****************************************************************************/
+void
+update_reverb_mix(PARAM *param)
+{
+	PATCH_STATE     *state  = param->patch->state;
+	REVERB          *reverb  = get_reverb(param->patch->part_num);
+	int             cc_val  = param->value.cc_val;
+
+	state->reverb_mix_cc = (short) cc_val;
+	state->reverb_mix    = mix_table[cc_val];
+
+	if (cc_val == 0) {
+		memset((void *)(reverb->buf), 0, REVERB_MAX * 2 * sizeof(sample_t));
+	}
+}
+
+/*****************************************************************************
+ * update_reverb_mix()
+ *****************************************************************************/
+void
+update_reverb_mode(PARAM *param)
+{
+	PATCH_STATE     *state  = param->patch->state;
+	REVERB          *reverb  = get_reverb(param->patch->part_num);
+	int             cc_val  = param->value.cc_val;
+
+	state->reverb_mode_cc = (short) cc_val;
+	memset((void *)(reverb->buf), 0, REVERB_MAX * 2 * sizeof(sample_t));
+}
+
+
+/*****************************************************************************
+ * update_reverb_damping()
+ *****************************************************************************/
+void
+update_reverb_damping(PARAM *param)
+{
+	PATCH_STATE     *state  = param->patch->state;
+	REVERB          *reverb  = get_reverb(param->patch->part_num);
+	int             cc_val  = param->value.cc_val;
+
+	state->reverb_damping_cc = (short) cc_val;
+	state->reverb_damping    = mix_table[cc_val];
+}
+
+/*****************************************************************************
+ * update_reverb_damping()
+ *****************************************************************************/
+void
+update_reverb_roomsize(PARAM *param)
+{
+	PATCH_STATE     *state  = param->patch->state;
+	REVERB          *reverb  = get_reverb(param->patch->part_num);
+	int             cc_val  = param->value.cc_val;
+
+	state->reverb_roomsize_cc = (short) cc_val;
+	state->reverb_roomsize    = mix_table[cc_val];
+}
+
+/*****************************************************************************
+ * update_reverb_width()
+ *****************************************************************************/
+void
+update_reverb_width(PARAM *param)
+{
+	PATCH_STATE     *state  = param->patch->state;
+	REVERB          *reverb  = get_reverb(param->patch->part_num);
+	int             cc_val  = param->value.cc_val;
+
+	state->reverb_width_cc = (short) cc_val;
+	state->reverb_width    = mix_table[cc_val];
+
+}
+/*****************************************************************************
+ * update_reverb_depth()
+ *****************************************************************************/
+void
+update_reverb_depth(PARAM *param)
+{
+	PATCH_STATE     *state  = param->patch->state;
+	REVERB          *reverb  = get_reverb(param->patch->part_num);
+	int             cc_val  = param->value.cc_val;
+
+	state->reverb_depth_cc = (short) cc_val;
+	state->reverb_depth    = mix_table[cc_val];
+
+}
 /*****************************************************************************
  * update_delay_mix()
  *****************************************************************************/
@@ -910,6 +1018,21 @@ update_osc_fine_tune(PARAM *param)
 }
 
 /*****************************************************************************
+ * update_osc_pan()
+ *****************************************************************************/
+void
+update_osc_pan(PARAM *param)
+{
+	PATCH_STATE     *state  = param->patch->state;
+	int             cc_val  = param->value.cc_val;
+	int             int_val = param->value.int_val;
+
+	state->osc_pan_cc[param->info->index] = (short) cc_val;
+	state->osc_pan_r[param->info->index] = (sample_t) pan_table[(127 - cc_val)];
+	state->osc_pan_l[param->info->index] = (sample_t) pan_table[cc_val];
+}
+
+/*****************************************************************************
  * update_osc_pitchbend()
  *****************************************************************************/
 void
@@ -922,6 +1045,55 @@ update_osc_pitchbend(PARAM *param)
 	state->osc_pitchbend_cc[param->info->index] = (short) cc_val;
 	state->osc_pitchbend[param->info->index]    = (sample_t) int_val;
 }
+/*****************************************************************************
+ * update_osc_pan_lfo()
+ *****************************************************************************/
+void
+update_osc_pan_lfo(PARAM *param)
+{
+	PATCH_STATE     *state  = param->patch->state;
+	PART            *part   = param->patch->part;
+	short           cc_val  = (short) param->value.cc_val;
+
+	if ((cc_val <= 0) || (cc_val > (NUM_LFOS + NUM_OSCS + 1))) {
+		state->osc_pan_lfo_cc[param->info->index] = 0;
+		state->osc_pan_lfo[param->info->index]    = LFO_OFF;
+		part->osc_pan_mod[param->info->index] = MOD_OFF;
+	}
+	else {
+		state->osc_pan_lfo_cc[param->info->index] = cc_val;
+		if (cc_val <= NUM_OSCS) {
+			state->osc_pan_mod_type[param->info->index] = MOD_TYPE_OSC;
+			state->osc_pan_lfo[param->info->index]      = LFO_OFF;
+			part->osc_pan_mod[param->info->index]   = (short)(cc_val - 1);
+		}
+		else if (cc_val <= (NUM_LFOS + NUM_OSCS)) {
+			state->osc_pan_mod_type[param->info->index] = MOD_TYPE_LFO;
+			state->osc_pan_lfo[param->info->index]      = (short)(cc_val - NUM_OSCS - 1);
+			part->osc_pan_mod[param->info->index]   = MOD_OFF;
+		}
+		else if (cc_val == NUM_LFOS + NUM_OSCS + 1) {
+			state->osc_pan_mod_type[param->info->index] = MOD_TYPE_VELOCITY;
+			state->osc_pan_lfo[param->info->index]      = LFO_OFF;
+			part->osc_pan_mod[param->info->index]   = MOD_VELOCITY;
+		}
+	}
+}
+
+/*****************************************************************************
+ * update_osc_pan_lfo_amount()
+ *****************************************************************************/
+void
+update_osc_pan_lfo_amount(PARAM *param)
+{
+	PATCH_STATE     *state  = param->patch->state;
+	int             cc_val  = param->value.cc_val;
+	int             int_val = param->value.int_val;
+
+	state->osc_pan_lfo_amount_cc[param->info->index] = (short) cc_val;
+	state->osc_pan_lfo_amount[param->info->index]    = ((sample_t) int_val) / 64.0;
+}
+
 
 /*****************************************************************************
  * update_osc_am_lfo()
@@ -1121,6 +1293,101 @@ update_osc_wave_lfo_amount(PARAM *param)
 
 	state->wave_lfo_amount_cc[param->info->index] = (short) cc_val;
 	state->wave_lfo_amount[param->info->index]    = (sample_t) int_val;
+}
+/*****************************************************************************
+ * update_voice_mute()
+ *****************************************************************************/
+void
+update_voice_mute(PARAM *param)
+{
+	PATCH_STATE     *state  = param->patch->state;
+	int             cc_val  = param->value.cc_val;
+	int             int_val = param->value.int_val;
+	VOICE           *voice;
+
+	state->voice_mute_cc[param->info->index] = (short) cc_val;
+	voice = get_voice(param->patch->part_num, param->info->index);
+	if ( voice->active && cc_val > 0 ) {
+		voice->active    = 0;
+		voice->allocated = 0;
+		voice->midi_key  = -1;
+	}
+}
+/*****************************************************************************
+ * update_voice_osc_tune()
+ *****************************************************************************/
+void
+update_voice_pan(PARAM *param)
+{
+	PATCH_STATE     *state  = param->patch->state;
+	int             cc_val  = param->value.cc_val;
+	int             int_val = param->value.int_val;
+	VOICE           *voice;
+
+	state->voice_pan_cc[param->info->index] = (short) cc_val;
+	state->voice_pan_r[param->info->index] = (sample_t) pan_table[(127 - cc_val)];
+	state->voice_pan_l[param->info->index] = (sample_t) pan_table[cc_val];
+	voice = get_voice(param->patch->part_num, param->info->index);
+	voice->need_portamento = 1;
+}
+/*****************************************************************************
+ * update_voice_osc_tune()
+ *****************************************************************************/
+void
+update_voice_osc_tune(PARAM *param)
+{
+	PATCH_STATE     *state  = param->patch->state;
+	int             cc_val  = param->value.cc_val;
+	int             int_val = param->value.int_val;
+	VOICE           *voice;
+
+	state->voice_osc_tune_cc[param->info->index] = (short) cc_val;
+	state->voice_osc_tune[param->info->index]    = (1.0 / 120.0) * ((sample_t) int_val);
+	voice = get_voice(param->patch->part_num, param->info->index);
+	voice->need_portamento = 1;
+}
+/*****************************************************************************
+ * update_voice_cutoff_tune()
+ *****************************************************************************/
+void
+update_voice_cutoff_tune(PARAM *param)
+{
+	PATCH_STATE     *state  = param->patch->state;
+	int             cc_val  = param->value.cc_val;
+	int             int_val = param->value.int_val;
+	VOICE           *voice;
+
+	state->voice_cutoff_tune_cc[param->info->index] = (short) cc_val;
+	state->voice_cutoff_tune[param->info->index]    = ((sample_t) int_val) / 128.0;
+}
+/*****************************************************************************
+ * update_voice_env_attack_tune()
+ *****************************************************************************/
+void
+update_voice_env_attack_tune(PARAM *param)
+{
+	PATCH_STATE     *state  = param->patch->state;
+	int             cc_val  = param->value.cc_val;
+	int             int_val = param->value.int_val;
+	VOICE           *voice;
+
+	state->voice_env_attack_tune_cc[param->info->index] = (short) cc_val;
+	state->voice_env_attack_tune[param->info->index]    = ((sample_t) int_val) / 128.0;
+}
+
+/*****************************************************************************
+ * update_voice_osc_tune()
+ *****************************************************************************/
+void
+update_voice_env_decay_tune(PARAM *param)
+{
+	PATCH_STATE     *state  = param->patch->state;
+	int             cc_val  = param->value.cc_val;
+	int             int_val = param->value.int_val;
+	VOICE           *voice;
+
+	state->voice_env_decay_tune_cc[param->info->index] = (short) cc_val;
+	state->voice_env_decay_tune[param->info->index]    = ((sample_t) int_val) / 128.0;
 }
 
 /*****************************************************************************

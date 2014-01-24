@@ -54,6 +54,7 @@ PART            synth_part[MAX_PARTS];
 VOICE           voice_pool[MAX_PARTS][MAX_VOICES];
 DELAY           per_part_delay[MAX_PARTS];
 CHORUS          per_part_chorus[MAX_PARTS];
+REVERB          per_part_reverb[MAX_PARTS];
 GLOBAL          global;
 
 pthread_mutex_t engine_ready_mutex;
@@ -83,12 +84,14 @@ init_engine_buffers(void)
 	PART            *part;
 	DELAY           *delay;
 	CHORUS          *chorus;
+	REVERB          *reverb;
 	int             part_num;
 
 	for (part_num = 0; part_num < MAX_PARTS; part_num++) {
 		part   = get_part(part_num);
 		delay  = get_delay(part_num);
 		chorus = get_chorus(part_num);
+		reverb = get_reverb(part_num);
 
 #ifdef INTERPOLATE_CHORUS
 		memset((void *)(chorus->buf_1), 0, CHORUS_MAX     * sizeof(sample_t));
@@ -97,6 +100,8 @@ init_engine_buffers(void)
 		memset((void *)(chorus->buf),   0, CHORUS_MAX * 2 * sizeof(sample_t));
 #endif
 		memset((void *)(delay->buf),    0, DELAY_MAX  * 2 * sizeof(sample_t));
+
+		memset((void *)(reverb->buf),    0, REVERB_MAX  * 2 * sizeof(sample_t));
 
 		memset((void *)(part->output_buffer1), 0,
 		       PHASEX_MAX_BUFSIZE * sizeof(jack_default_audio_sample_t));
@@ -125,6 +130,7 @@ init_engine_internals(void)
 	PART            *part;
 	DELAY           *delay;
 	CHORUS          *chorus;
+	REVERB          *reverb;
 	unsigned int    part_num;
 	unsigned int    j;
 	static int      once = 1;
@@ -147,6 +153,7 @@ init_engine_internals(void)
 		part   = get_part(part_num);
 		delay  = get_delay(part_num);
 		chorus = get_chorus(part_num);
+		reverb = get_reverb(part_num);
 
 		g_atomic_int_set(&engine_ready[part_num], 0);
 
@@ -158,6 +165,7 @@ init_engine_internals(void)
 		part->prev_key = -1;
 
 		/* set buffer sizes and zero buffers */
+		reverb->bufsize  = REVERB_MAX;
 		delay->bufsize  = DELAY_MAX;
 		chorus->bufsize = CHORUS_MAX;
 
@@ -181,6 +189,12 @@ init_engine_internals(void)
 				break;
 			}
 		}
+		for (j = 1; j < 24; j++) {
+					if ((REVERB_MAX >> j) == 1) {
+						reverb->bufsize_mask = ((1 << j) - 1);
+						break;
+					}
+				}
 	}
 
 	init_midi_processor();
@@ -214,6 +228,7 @@ init_engine_parameters(void)
 	VOICE           *voice;
 	DELAY           *delay;
 	CHORUS          *chorus;
+	REVERB          *reverb;
 	unsigned int    osc;
 	unsigned int    lfo;
 	unsigned int    part_num;
@@ -226,6 +241,7 @@ init_engine_parameters(void)
 		patch  = get_active_patch(part_num);
 		state  = get_active_state(part_num);
 		delay  = get_delay(part_num);
+		reverb = get_reverb(part_num);
 		chorus = get_chorus(part_num);
 
 		/* set initial bpm/bps from patch bpm */
@@ -302,6 +318,19 @@ init_engine_parameters(void)
 		     (F_WAVEFORM_SIZE * 0.75)) >= F_WAVEFORM_SIZE) {
 			chorus->lfo_index_d -= F_WAVEFORM_SIZE;
 		}
+		/* initialize reverb */
+		state->reverb_bypass_cc = 1;
+		state->reverb_roomsize_cc = 0;
+		state->reverb_roomsize = 1.0;
+		state->reverb_damping_cc = 1.0;
+		state->reverb_damping = 1.0;
+		state->reverb_width = 1.0;
+		state->reverb_width_cc = 1.0;
+		state->reverb_depth = 1.0;
+		state->reverb_depth_cc = 0.1;
+		state->reverb_mode_cc = 0;
+		state->reverb_mix_cc = 64;
+		state->reverb_mix = 0.5;                  /* delay input
 
 		/* initialize pitch bend attrs */
 		part->pitch_bend_target = part->pitch_bend_base = 0.0;
@@ -373,9 +402,12 @@ init_engine_parameters(void)
 		}
 
 		/* now handle voice specific inits */
+		PHASEX_DEBUG(DEBUG_CLASS_ENGINE, "Assigning voices.\n");
 		for (voice_num = 0; voice_num < MAX_VOICES; voice_num++) {
 			voice = get_voice(part_num, voice_num);
-			voice->id = (int) voice_num;
+			voice->id = voice_num;
+			PHASEX_DEBUG(DEBUG_CLASS_ENGINE, "Assigning voices: %d, %d\n",voice->id,voice_num);
+			state->voice_osc_tune[voice_num] = 0.0;
 
 			/* init portamento and velocity */
 			voice->portamento_samples     = env_table[state->portamento];
@@ -524,12 +556,54 @@ init_engine_parameters(void)
 		}
 
 		/* mono gets voice 0 */
-		if (state->keymode != KEYMODE_POLY) {
+		if (state->keymode != KEYMODE_POLY ) {
 			voice = get_voice(part_num, 0);
 			voice->active    = 1;
 			voice->allocated = 1;
 		}
 	}
+	state->voice_osc_tune[1] = -5.0;
+	state->voice_osc_tune[2] = -3.0;
+	state->voice_osc_tune[3] = -2.0;
+	state->voice_osc_tune[4] = 11.0;
+	state->voice_osc_tune[5] = -9.0;
+	state->voice_osc_tune[6] =  2.0;
+	state->voice_osc_tune[7] = -7.0;
+	state->voice_osc_tune[9] = -5.0;
+	state->voice_osc_tune[10] = -3.0;
+	state->voice_osc_tune[11] = -2.0;
+	state->voice_osc_tune[12] = 11.0;
+	state->voice_osc_tune[13] = -9.0;
+	state->voice_osc_tune[14] =  2.0;
+	state->voice_osc_tune[15] = -7.0;
+	state->voice_cutoff_tune[1] = 11.0;
+	state->voice_cutoff_tune[2] = -3.0;
+	state->voice_cutoff_tune[3] = -9.0;
+	state->voice_cutoff_tune[4] =  7.0;
+	state->voice_cutoff_tune[5] = -5.0;
+	state->voice_cutoff_tune[6] = -13.0;
+	state->voice_cutoff_tune[7] = -2.0;
+	state->voice_cutoff_tune[9] = 11.0;
+	state->voice_cutoff_tune[10] = -3.0;
+	state->voice_cutoff_tune[11] = -9.0;
+	state->voice_cutoff_tune[12] =  7.0;
+	state->voice_cutoff_tune[13] = -5.0;
+	state->voice_cutoff_tune[14] = -13.0;
+	state->voice_cutoff_tune[15] = -2.0;
+	state->voice_env_decay_tune[1] = -9.0;
+	state->voice_env_decay_tune[2] =  7.0;
+	state->voice_env_decay_tune[3] =  15.0;
+	state->voice_env_decay_tune[4] = -11.0;
+	state->voice_env_decay_tune[5] = -13.0;
+	state->voice_env_decay_tune[6] = -5.0;
+	state->voice_env_decay_tune[7] =  2.0;
+	state->voice_env_decay_tune[9] = -9.0;
+	state->voice_env_decay_tune[10] =  7.0;
+	state->voice_env_decay_tune[11] =  15.0;
+	state->voice_env_decay_tune[12] = -11.0;
+	state->voice_env_decay_tune[13] = -13.0;
+	state->voice_env_decay_tune[14] = -5.0;
+	state->voice_env_decay_tune[15] =  2.0;
 }
 
 
@@ -568,7 +642,6 @@ engine_thread(void *arg)
 
 	PHASEX_DEBUG(DEBUG_CLASS_INIT, "Starting Engine Thread for Part %d  (sleep_time=%d)\n",
 	             (part_num + 1), engine_sleep_time);
-
 	/* set realtime scheduling and priority */
 	thread_id = pthread_self();
 	memset(&schedparam, 0, sizeof(struct sched_param));
@@ -886,8 +959,8 @@ run_part(PART *part, PATCH_STATE *state, unsigned int part_num)
 #endif
 
 	/* now apply patch volume and panning */
-	part->out1 *= state->volume * pan_table[127 - state->pan_cc];
-	part->out2 *= state->volume * pan_table[state->pan_cc];
+	part->out1 *= state->volume * state->pan_r;
+	part->out2 *= state->volume * state->pan_l;
 
 
 	/* effects are last in the chain. */
@@ -896,6 +969,9 @@ run_part(PART *part, PATCH_STATE *state, unsigned int part_num)
 	}
 	if (state->delay_mix_cc) {
 		run_delay(get_delay(part_num), part, state);
+	}
+	if (state->reverb_mix_cc) {
+		run_reverb(get_reverb(part_num), part, state);
 	}
 
 	/* output this sample to the buffer */
@@ -929,11 +1005,11 @@ run_voice_envelopes(PART *part, PATCH_STATE *state, unsigned int part_num)
 	part->filter_env_max = 0.0;
 
 	/* generate envelopes for all voices on this part */
-	for (voice_num = 0; voice_num < (unsigned int) setting_polyphony; voice_num++) {
+for (voice_num = 0; voice_num < (unsigned int) setting_polyphony; voice_num++) {
 		voice = get_voice(part_num, voice_num);
 
 		/* skip over inactive voices */
-		if ((voice->allocated == 0)) {
+		if ((voice->allocated == 0 || state->voice_mute_cc[(voice->id % 8)] == 1)) {
 			continue;
 		}
 
@@ -1071,7 +1147,7 @@ run_voice_envelope(PART         *part,
 					/* (sample_t)voice->filter_env_dur[ENV_INTERVAL_DECAY]; */
 					(state->filter_sustain - voice->filter_env_raw) /
 					(sample_t) voice->filter_env_dur[ENV_INTERVAL_DECAY];
-				voice->filter_env_raw += voice->filter_env_delta[ENV_INTERVAL_DECAY];
+				voice->filter_env_raw += voice->filter_env_delta[ENV_INTERVAL_DECAY] + state->voice_env_decay_tune[(int)voice->id];;
 				break;
 			case ENV_INTERVAL_DECAY:
 				/* move on to sustain */
@@ -1190,7 +1266,6 @@ void run_lfo(PART         *part,
 		else {
 			part->lfo_freq[lfo] = freq_table[state->patch_tune_cc][256 + part->lfo_key[lfo]];
 		}
-
 		/* intentional fall-through */
 	case FREQ_BASE_TEMPO_KEYTRIG:
 	case FREQ_BASE_TEMPO:
@@ -1263,7 +1338,7 @@ run_voices(PART *part, PATCH_STATE *state, unsigned int part_num)
 	VOICE           *voice;
 	unsigned int    voice_num;
 
-	/* cycle through voices in play */
+		/* cycle through voices in play */
 	for (voice_num = 0; voice_num < (unsigned int) setting_polyphony; voice_num++) {
 		voice = get_voice(part_num, voice_num);
 
@@ -1317,10 +1392,12 @@ run_voice(VOICE *voice, PART *part, PATCH_STATE *state)
 	/* Apply dedicated LFO AM for this voice */
 	tmp = (1.0 + state->lfo_1_voice_am * (part->lfo_out[0] - 1.0));
 
-	/* Apply the amp velocity and amp envelope for this voice */
+	/* Apply the amp velocity, amp envelope, and panning for this voice */
 	tmp *= voice->velocity_coef_log * env_curve[(int)(voice->amp_env_raw * F_ENV_CURVE_SIZE)];
 	voice->out1 *= tmp;
 	voice->out2 *= tmp;
+	voice->out1 *= state->voice_pan_r[voice->id];
+	voice->out2 *= state->voice_pan_l[voice->id];
 
 	/* end of per voice parameters.  mix voices */
 	part->out1 += ((voice->out1 * state->stereo_width) +
@@ -1438,7 +1515,8 @@ run_osc(VOICE *voice, PART *part, PATCH_STATE *state, unsigned int osc)
 		freq_adjust = halfsteps_to_freq_mult((tmp_1
 		                                      * state->freq_lfo_amount[osc])
 		                                     + part->osc_pitch_bend[osc]
-		                                     + state->osc_transpose[osc])
+		                                     + state->osc_transpose[osc]
+		                                     + state->voice_osc_tune[(int)voice->id] )
 			* voice->osc_freq[osc] * wave_period;
 
 		/* shift the wavetable index by amounts determined above */
@@ -1590,7 +1668,17 @@ run_osc(VOICE *voice, PART *part, PATCH_STATE *state, unsigned int osc)
 		voice->osc_out2[osc] *= tmp_1;
 		break;
 	}
-
+	/* Apply per oscillator panning. */
+	if (state->osc_pan_lfo_amount[osc] > 0.0) {
+		voice->osc_out1[osc] *= ((part->lfo_out[state->osc_pan_lfo[osc]] * state->osc_pan_lfo_amount[osc]) + 1.0) * 0.5;
+		voice->osc_out2[osc] *= ((part->lfo_out[state->osc_pan_lfo[osc]] * state->osc_pan_lfo_amount[osc]) - 1.0) * 0.5;
+	}
+	else if (state->osc_pan_lfo_amount[osc] < 0.0) {
+		voice->osc_out1[osc] *= ((part->lfo_out[state->osc_pan_lfo[osc]] * state->osc_pan_lfo_amount[osc]) - 1.0) * 0.5;
+		voice->osc_out2[osc] *= ((part->lfo_out[state->osc_pan_lfo[osc]] * state->osc_pan_lfo_amount[osc]) + 1.0) * 0.5;
+	}
+	voice->osc_out1[osc] *= state->osc_pan_r[osc];
+	voice->osc_out2[osc] *= state->osc_pan_l[osc];
 	/* add oscillator to voice mix, if necessary */
 	if (state->osc_modulation[osc] == MOD_TYPE_MIX) {
 		voice->out1 += voice->osc_out1[osc];
@@ -1649,6 +1737,17 @@ run_delay(DELAY *delay, PART *part, PATCH_STATE *state)
 	/* increment delay write index */
 	delay->write_index++;
 	delay->write_index &= delay->bufsize_mask;
+}
+/*****************************************************************************
+ * run_reverb()
+ *
+ * Apply reverb effect to current part / current sample.
+ *****************************************************************************/
+void
+run_reverb(REVERB *reverb, PART *part, PATCH_STATE *state)
+{
+	/* do nothing for now...
+	 */
 }
 
 

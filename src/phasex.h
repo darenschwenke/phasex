@@ -45,7 +45,7 @@
    3 for the newer multi-core and other incredibly fast chips.
    4 for switching almost entirely over to 64-bit math. */
 #if !defined(PHASEX_CPU_POWER)
-# define PHASEX_CPU_POWER               2
+# define PHASEX_CPU_POWER               4
 #endif
 
 /* Type to use for (almost) all floating point math. */
@@ -326,9 +326,10 @@ typedef float sample_t;
  *
  *****************************************************************************/
 
-/* Number of per-voice oscs and per-part lfos */
+/* Number of per-voice oscs, per-part lfos, per-part filters */
 #define NUM_OSCS                        4
 #define NUM_LFOS                        4
+#define NUM_VOICES                      16
 
 /* The Off/Velocity LFOs and Oscilators get their own slot */
 #define LFO_OFF                         NUM_LFOS
@@ -355,6 +356,7 @@ typedef float sample_t;
 
 /* Maximum delay times, in samples, must be powers of 2, and large
    enough to function at all sample rates. */
+#define REVERB_MAX                      524288
 #define DELAY_MAX                       524288
 #define CHORUS_MAX                      8192
 #define CHORUS_MASK                     (CHORUS_MAX - 1)

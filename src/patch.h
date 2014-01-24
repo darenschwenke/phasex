@@ -59,6 +59,8 @@ typedef struct patch_state {
 	sample_t    input_boost;                /* sixteenth boost in input amplitude */
 	short       input_follow;               /* apply input envelope follower */
 	short       pan_cc;                     /* panning adj (0=right, 64=center, 127=left) */
+	sample_t    pan_l;                      /* panning adj (0=right, 64=center, 127=left) */
+	sample_t    pan_r;                      /* panning adj (0=right, 64=center, 127=left) */
 	sample_t    stereo_width;               /* width of stereo image (0=mono 127=stereo) */
 	short       stereo_width_cc;
 	short       amp_velocity_cc;
@@ -81,6 +83,20 @@ typedef struct patch_state {
 	short       delay_lfo_cc;
 	short       delay_mix_cc;
 	sample_t    delay_mix;                  /* delay input to output mixing ratio */
+
+	/* reverb parameters */
+	short       reverb_bypass_cc;
+	short       reverb_roomsize_cc;
+	sample_t    reverb_roomsize;                 /* delay feedback */
+	short       reverb_damping_cc;
+	sample_t    reverb_damping;                 /* delay feedback */
+	sample_t    reverb_width;                 /* length of delay buffer in bars */
+	short       reverb_width_cc;
+	sample_t    reverb_depth;                 /* length of delay buffer in bars */
+	short       reverb_depth_cc;
+	short       reverb_mode_cc;                  /* lfo to apply to delay */
+	short       reverb_mix_cc;
+	sample_t    reverb_mix;                  /* delay input to output mixing ratio */
 
 	/* chorus parameters */
 	sample_t    chorus_mix;                 /* chorus input to output mixing ratio */
@@ -146,6 +162,14 @@ typedef struct patch_state {
 	short       osc_fine_tune_cc[NUM_OSCS];
 	sample_t    osc_pitchbend[NUM_OSCS];    /* per-osc +/- amount (halfsteps) to bend */
 	short       osc_pitchbend_cc[NUM_OSCS];
+	short		osc_pan_cc[NUM_OSCS];		/* per-osc panning adj (0=right, 64=center, 127=left) */
+	sample_t	osc_pan_l[NUM_OSCS];		/* per-osc panning adj (0=right, 64=center, 127=left) */
+	sample_t	osc_pan_r[NUM_OSCS];		/* per-osc panning adj (0=right, 64=center, 127=left) */
+	short       osc_pan_mod_type[NUM_OSCS];      /* type of modulator for pan modulation */
+	short       osc_pan_lfo[NUM_OSCS];           /* lfo to use for pan modulation */
+	short       osc_pan_lfo_cc[NUM_OSCS];
+	sample_t    osc_pan_lfo_amount[NUM_OSCS];    /* range of pan lfo */
+	short       osc_pan_lfo_amount_cc[NUM_OSCS];
 	short       am_mod_type[NUM_OSCS];      /* type of modulator for amplitude modulation */
 	short       am_lfo[NUM_OSCS];           /* lfo to use for amplitude modulation */
 	short       am_lfo_cc[NUM_OSCS];
@@ -167,7 +191,19 @@ typedef struct patch_state {
 	short       wave_lfo_cc[NUM_OSCS];
 	sample_t    wave_lfo_amount[NUM_OSCS];  /* range of wave selector lfo */
 	short       wave_lfo_amount_cc[NUM_OSCS];
-
+	/* voice tuning parameters */
+    short		voice_mute_cc[MAX_VOICES];
+    sample_t	voice_pan_l[MAX_VOICES];
+    sample_t	voice_pan_r[MAX_VOICES];
+    short		voice_pan_cc[MAX_VOICES];
+    sample_t	voice_osc_tune[MAX_VOICES];
+    short		voice_osc_tune_cc[MAX_VOICES];
+    sample_t	voice_cutoff_tune[MAX_VOICES];
+    short		voice_cutoff_tune_cc[MAX_VOICES];
+    sample_t	voice_env_attack_tune[MAX_VOICES];
+    short		voice_env_attack_tune_cc[MAX_VOICES];
+    sample_t	voice_env_decay_tune[MAX_VOICES];
+    short		voice_env_decay_tune_cc[MAX_VOICES];
 	/* lfo parameters */
 	short       lfo_wave[NUM_LFOS + 1];      /* waveform to use for lfo */
 	short       lfo_freq_base[NUM_LFOS + 1]; /* freq_base for lfo (0=wave; 1=env; 2=cc) */

@@ -654,6 +654,7 @@ run_filter(VOICE *voice, PART *part, PATCH_STATE *state)
 	/* assignable lfo/velocity controls with dedicated lfo cutoff */
 	filter_index = ((int)(((tmp * state->filter_lfo_cutoff) +
 	                       (part->lfo_out[2] * state->lfo_3_cutoff) +
+	                       state->voice_cutoff_tune[voice->id] +
 	                       (state->filter_env_amount * voice->filter_env_raw) -
 	                       part->filter_env_offset +
 	                       state->filter_cutoff +

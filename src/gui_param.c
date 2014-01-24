@@ -54,7 +54,7 @@
 
 
 int periodic_update_in_progress = 0;
-
+static gboolean control_held = 0;
 
 /*****************************************************************************
  * upadate_gui_param()
@@ -602,13 +602,21 @@ on_param_label_event(gpointer data1, gpointer data2)
 	case GDK_SCROLL:
 		switch (scroll->direction) {
 		case GDK_SCROLL_DOWN:
-			if (gui_param->value.cc_val > 0) {
+			if (control_held == 1 && (gui_param->value.cc_val) > (gui_param->info->leap)) {
+				new_param_value(gui_param, param, ((gui_param->value.cc_val) - (gui_param->info->leap)));
+			} else if ( control_held == 1 && (gui_param->value.cc_val) <= (gui_param->info->leap) ) {
+				new_param_value(gui_param, param, 0);
+			} else if ( gui_param->value.cc_val > 0 ) {
 				new_param_value(gui_param, param, (gui_param->value.cc_val - 1));
 			}
 			grab = 1;
 			break;
 		case GDK_SCROLL_UP:
-			if ((gui_param->value.cc_val) < (gui_param->info->cc_limit)) {
+			if (control_held == 1 && (gui_param->value.cc_val) < ((gui_param->info->cc_limit) - (gui_param->info->leap))) {
+				new_param_value(gui_param, param, ((gui_param->value.cc_val) + (gui_param->info->leap)));
+			} else if (control_held == 1 && (gui_param->value.cc_val) >= ((gui_param->info->cc_limit) - (gui_param->info->leap))) {
+				new_param_value(gui_param, param, (gui_param->info->cc_limit));
+			} else if ((gui_param->value.cc_val) < (gui_param->info->cc_limit)) {
 				new_param_value(gui_param, param, (gui_param->value.cc_val + 1));
 			}
 			grab = 1;
@@ -685,9 +693,27 @@ on_param_label_event(gpointer data1, gpointer data2)
 			break;
 		case GDK_Return:
 		case GDK_KP_Enter:
+			break;
+		case GDK_Control_L:
+		case GDK_Control_R:
+			fprintf(stderr, "Control held.\n");
+			control_held = 1;
+			break;
 		default:
 			break;
 		}
+		break;
+	case GDK_KEY_RELEASE:
+		switch (key->keyval) {
+		case GDK_Control_L:
+		case GDK_Control_R:
+			fprintf(stderr, "Control release.\n");
+			control_held = 0;
+			break;
+		default:
+			break;
+		}
+		break;
 	case GDK_ENTER_NOTIFY:
 		if (!key->keyval) {
 			gui_param->info->prelight = 1;
@@ -925,10 +951,9 @@ on_param_button_event(gpointer data1, gpointer data2, gpointer data3)
 			break;
 		case GDK_Return:
 		case GDK_KP_Enter:
-		default:
-
 			break;
 		}
+		break;
 	case GDK_ENTER_NOTIFY:
 		if (gui_param->info->prelight < 0) {
 			gui_param->info->prelight = button_num;
@@ -993,6 +1018,7 @@ create_param_input(GtkWidget *UNUSED(main_window),
 	GtkWidget       *hbox;
 	GtkWidget       *button_table;
 	GtkWidget       *button;
+	GtkWidget       *led;
 	GtkObject       *adj;
 	GSList          *button_group;
 	unsigned int    j;
@@ -1580,6 +1606,16 @@ get_param_sensitivity(unsigned int part_num, unsigned int id)
 			sensitive = 0;
 		}
 		break;
+	case PARAM_REVERB_BYPASS:
+	case PARAM_REVERB_ROOMSIZE:
+	case PARAM_REVERB_DAMPING:
+	case PARAM_REVERB_WIDTH:
+	case PARAM_REVERB_DEPTH:
+	case PARAM_REVERB_MODE:
+		if (patch->param[PARAM_REVERB_MIX].value.cc_val == 0 || patch->param[PARAM_REVERB_BYPASS].value.cc_val == 1) {
+			sensitive = 0;
+		}
+		break;
 	case PARAM_OSC1_POLARITY:
 	case PARAM_OSC2_POLARITY:
 	case PARAM_OSC3_POLARITY:
@@ -1655,11 +1691,21 @@ get_param_sensitivity(unsigned int part_num, unsigned int id)
 			sensitive = 0;
 		}
 		break;
+	case PARAM_OSC1_PAN:
+	case PARAM_OSC2_PAN:
+	case PARAM_OSC3_PAN:
+	case PARAM_OSC4_PAN:
+		if ((patch->param[id - 9].value.cc_val == MOD_TYPE_OFF) ||
+		    ((patch->param[id - 7].value.cc_val > FREQ_BASE_MIDI_KEY) &&
+		     (patch->param[id - 7].value.cc_val < FREQ_BASE_TEMPO))) {
+			sensitive = 0;
+		}
+		break;
 	case PARAM_OSC1_AM_LFO:
 	case PARAM_OSC2_AM_LFO:
 	case PARAM_OSC3_AM_LFO:
 	case PARAM_OSC4_AM_LFO:
-		if (patch->param[id - 9].value.cc_val == MOD_TYPE_OFF) {
+		if (patch->param[id - 10].value.cc_val == MOD_TYPE_OFF) {
 			sensitive = 0;
 		}
 		break;
@@ -1667,7 +1713,7 @@ get_param_sensitivity(unsigned int part_num, unsigned int id)
 	case PARAM_OSC2_AM_LFO_AMOUNT:
 	case PARAM_OSC3_AM_LFO_AMOUNT:
 	case PARAM_OSC4_AM_LFO_AMOUNT:
-		if ((patch->param[id - 10].value.cc_val == MOD_TYPE_OFF) ||
+		if ((patch->param[id - 11].value.cc_val == MOD_TYPE_OFF) ||
 		    (patch->param[id - 1].value.cc_val == 0)) {
 			sensitive = 0;
 		}
@@ -1676,9 +1722,9 @@ get_param_sensitivity(unsigned int part_num, unsigned int id)
 	case PARAM_OSC2_FREQ_LFO:
 	case PARAM_OSC3_FREQ_LFO:
 	case PARAM_OSC4_FREQ_LFO:
-		if ((patch->param[id - 11].value.cc_val == MOD_TYPE_OFF) ||
-		    ((patch->param[id - 9].value.cc_val > FREQ_BASE_MIDI_KEY) &&
-		     (patch->param[id - 9].value.cc_val < FREQ_BASE_TEMPO))) {
+		if ((patch->param[id - 12].value.cc_val == MOD_TYPE_OFF) ||
+		    ((patch->param[id - 10].value.cc_val > FREQ_BASE_MIDI_KEY) &&
+		     (patch->param[id - 10].value.cc_val < FREQ_BASE_TEMPO))) {
 			sensitive = 0;
 		}
 		break;
@@ -1686,9 +1732,9 @@ get_param_sensitivity(unsigned int part_num, unsigned int id)
 	case PARAM_OSC2_FREQ_LFO_AMOUNT:
 	case PARAM_OSC3_FREQ_LFO_AMOUNT:
 	case PARAM_OSC4_FREQ_LFO_AMOUNT:
-		if ((patch->param[id - 12].value.cc_val == MOD_TYPE_OFF) ||
-		    ((patch->param[id - 10].value.cc_val > FREQ_BASE_MIDI_KEY) &&
-		     (patch->param[id - 10].value.cc_val < FREQ_BASE_TEMPO)) ||
+		if ((patch->param[id - 13].value.cc_val == MOD_TYPE_OFF) ||
+		    ((patch->param[id - 11].value.cc_val > FREQ_BASE_MIDI_KEY) &&
+		     (patch->param[id - 11].value.cc_val < FREQ_BASE_TEMPO)) ||
 		    (patch->param[id - 1].value.cc_val == 0)) {
 			sensitive = 0;
 		}
@@ -1697,9 +1743,9 @@ get_param_sensitivity(unsigned int part_num, unsigned int id)
 	case PARAM_OSC2_FREQ_LFO_FINE:
 	case PARAM_OSC3_FREQ_LFO_FINE:
 	case PARAM_OSC4_FREQ_LFO_FINE:
-		if ((patch->param[id - 13].value.cc_val == MOD_TYPE_OFF) ||
-		    ((patch->param[id - 11].value.cc_val > FREQ_BASE_MIDI_KEY) &&
-		     (patch->param[id - 11].value.cc_val < FREQ_BASE_TEMPO)) ||
+		if ((patch->param[id - 14].value.cc_val == MOD_TYPE_OFF) ||
+		    ((patch->param[id - 12].value.cc_val > FREQ_BASE_MIDI_KEY) &&
+		     (patch->param[id - 12].value.cc_val < FREQ_BASE_TEMPO)) ||
 		    (patch->param[id - 2].value.cc_val == 0)) {
 			sensitive = 0;
 		}
@@ -1708,9 +1754,9 @@ get_param_sensitivity(unsigned int part_num, unsigned int id)
 	case PARAM_OSC2_PHASE_LFO:
 	case PARAM_OSC3_PHASE_LFO:
 	case PARAM_OSC4_PHASE_LFO:
-		if ((patch->param[id - 14].value.cc_val == MOD_TYPE_OFF) ||
-		    ((patch->param[id - 12].value.cc_val > FREQ_BASE_MIDI_KEY) &&
-		     (patch->param[id - 12].value.cc_val < FREQ_BASE_TEMPO))) {
+		if ((patch->param[id - 15].value.cc_val == MOD_TYPE_OFF) ||
+		    ((patch->param[id - 13].value.cc_val > FREQ_BASE_MIDI_KEY) &&
+		     (patch->param[id - 13].value.cc_val < FREQ_BASE_TEMPO))) {
 			sensitive = 0;
 		}
 		break;
@@ -1718,9 +1764,9 @@ get_param_sensitivity(unsigned int part_num, unsigned int id)
 	case PARAM_OSC2_PHASE_LFO_AMOUNT:
 	case PARAM_OSC3_PHASE_LFO_AMOUNT:
 	case PARAM_OSC4_PHASE_LFO_AMOUNT:
-		if ((patch->param[id - 15].value.cc_val == MOD_TYPE_OFF) ||
-		    ((patch->param[id - 13].value.cc_val > FREQ_BASE_MIDI_KEY) &&
-		     (patch->param[id - 13].value.cc_val < FREQ_BASE_TEMPO)) ||
+		if ((patch->param[id - 16].value.cc_val == MOD_TYPE_OFF) ||
+		    ((patch->param[id - 14].value.cc_val > FREQ_BASE_MIDI_KEY) &&
+		     (patch->param[id - 14].value.cc_val < FREQ_BASE_TEMPO)) ||
 		    (patch->param[id - 1].value.cc_val == 0)) {
 			sensitive = 0;
 		}
@@ -1729,9 +1775,9 @@ get_param_sensitivity(unsigned int part_num, unsigned int id)
 	case PARAM_OSC2_WAVE_LFO:
 	case PARAM_OSC3_WAVE_LFO:
 	case PARAM_OSC4_WAVE_LFO:
-		if ((patch->param[id - 16].value.cc_val == MOD_TYPE_OFF) ||
-		    ((patch->param[id - 14].value.cc_val > FREQ_BASE_MIDI_KEY) &&
-		     (patch->param[id - 14].value.cc_val < FREQ_BASE_TEMPO))) {
+		if ((patch->param[id - 17].value.cc_val == MOD_TYPE_OFF) ||
+		    ((patch->param[id - 15].value.cc_val > FREQ_BASE_MIDI_KEY) &&
+		     (patch->param[id - 15].value.cc_val < FREQ_BASE_TEMPO))) {
 			sensitive = 0;
 		}
 		break;
@@ -1739,9 +1785,9 @@ get_param_sensitivity(unsigned int part_num, unsigned int id)
 	case PARAM_OSC2_WAVE_LFO_AMOUNT:
 	case PARAM_OSC3_WAVE_LFO_AMOUNT:
 	case PARAM_OSC4_WAVE_LFO_AMOUNT:
-		if ((patch->param[id - 17].value.cc_val == MOD_TYPE_OFF) ||
-		    ((patch->param[id - 15].value.cc_val > FREQ_BASE_MIDI_KEY) &&
-		     (patch->param[id - 15].value.cc_val < FREQ_BASE_TEMPO)) ||
+		if ((patch->param[id - 18].value.cc_val == MOD_TYPE_OFF) ||
+		    ((patch->param[id - 16].value.cc_val > FREQ_BASE_MIDI_KEY) &&
+		     (patch->param[id - 16].value.cc_val < FREQ_BASE_TEMPO)) ||
 		    (patch->param[id - 1].value.cc_val == 0)) {
 			sensitive = 0;
 		}
@@ -1821,14 +1867,14 @@ update_param_child_sensitivities(unsigned int part_num, unsigned int id)
 		case PARAM_OSC3_MODULATION:
 		case PARAM_OSC4_MODULATION:
 			start = id + 1;
-			end   = id + 17;
+			end   = id + 18;
 			break;
 		case PARAM_OSC1_FREQ_BASE:
 		case PARAM_OSC2_FREQ_BASE:
 		case PARAM_OSC3_FREQ_BASE:
 		case PARAM_OSC4_FREQ_BASE:
 			start = id + 1;
-			end   = id + 15;
+			end   = id + 16;
 			break;
 		case PARAM_OSC1_AM_LFO:
 		case PARAM_OSC2_AM_LFO:

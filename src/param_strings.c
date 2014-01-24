@@ -168,6 +168,9 @@ char *keymode_names[] = {
 	"mono_smooth",
 	"mono_retrig",
 	"mono_multikey",
+	"mono_unison4",
+	"mono_unison6",
+	"mono_unison8",
 	"poly",
 	NULL
 };
@@ -244,6 +247,8 @@ char *wave_names[] = {
 	"poly_2",
 	"poly_3",
 	"poly_4",
+//	"white_noise",
+//	"pink_noise",
 	"null",
 	"identity",
 	NULL
@@ -338,6 +343,13 @@ char *boolean_names[] = {
 	NULL
 };
 
+/* reverb mode names */
+char *reverb_mode_names[] = {
+	"normal",
+	"freeze",
+	NULL
+};
+
 /* MIDI channel names */
 char *midi_ch_names[] = {
 	"1",
@@ -391,6 +403,12 @@ const char *on_off_labels[] = {
 	NULL
 };
 
+const char *reverb_mode_labels[] = {
+	"Normal",
+	"Freeze",
+	NULL
+};
+
 const char *freq_base_labels[] = {
 	"MIDI Key  ",
 	"Input 1   ",
@@ -416,6 +434,9 @@ const char *keymode_labels[] = {
 	"MonoSmooth",
 	"MonoReTrig",
 	"MonoMulti ",
+	"MonoUni-4 ",
+	"MonoUni-6 ",
+	"MonoUni-8 ",
 	"Poly      ",
 	NULL
 };
@@ -468,6 +489,8 @@ const char *wave_labels[] = {
 	"Poly 2    ",
 	"Poly 3    ",
 	"Poly 4    ",
+//	"Wht Noise ",
+//	"Pink Noise",
 	"Null      ",
 	"Identity  ",
 	NULL

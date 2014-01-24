@@ -29,7 +29,6 @@
 
 extern int  periodic_update_in_progress;
 
-
 void update_gui_param(PARAM *param);
 void gui_param_midi_update(PARAM *param, int cc_val);
 int get_param_widget_val(GtkWidget *widget, PARAM *param);

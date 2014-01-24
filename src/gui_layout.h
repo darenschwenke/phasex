@@ -28,10 +28,10 @@
 
 
 /* Update NUM_PARAM_GROUPS after changing groups in param.c */
-#define NUM_PARAM_GROUPS        20
+#define NUM_PARAM_GROUPS        28
 
 /* Update NUM_PARAM_PAGES after changing paes in param.c */
-#define NUM_PARAM_PAGES         2
+#define NUM_PARAM_PAGES         3
 
 
 /* Parameter group, with array of parameter IDs */

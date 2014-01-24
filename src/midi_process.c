@@ -103,6 +103,8 @@ process_note_on(MIDI_EVENT *event, unsigned int part_num)
 	int             free_voice;
 	int             steal_voice;
 	int             same_key;
+	int				osc;
+	int				voice_count = 0;
 
 	/* if this is velocity 0 style note off, fall through */
 	if (event->velocity > 0) {
@@ -130,6 +132,18 @@ process_note_on(MIDI_EVENT *event, unsigned int part_num)
 				             (old_voice->id + 1));
 				vnum[part_num] = (vnum[part_num] + 1) % setting_polyphony;
 			}
+			break;
+		case KEYMODE_MONO_UNISON_4:
+			voice_count = 4;
+			vnum[part_num] = 0;
+			break;
+		case KEYMODE_MONO_UNISON_6:
+			voice_count = 6;
+			vnum[part_num] = 0;
+			break;
+		case KEYMODE_MONO_UNISON_8:
+			voice_count = 8;
+			vnum[part_num] = 0;
 			break;
 		case KEYMODE_MONO_MULTIKEY:
 			vnum[part_num] = 0;
@@ -204,17 +218,29 @@ process_note_on(MIDI_EVENT *event, unsigned int part_num)
 
 		/* keep pointer to current voice around */
 		voice = get_voice(part_num, vnum[part_num]);
-
 		/* assign midi note */
 		voice->midi_key   = part->midi_key;
 		voice->keypressed = part->midi_key;
-
 		/* keep velocity for this note event */
 		voice->velocity               = event->velocity;
 		voice->velocity_target_linear = voice->velocity_coef_linear =
 			part->velocity_target = part->velocity_coef = ((sample_t) event->velocity) * 0.01;
 		voice->velocity_target_log    = voice->velocity_coef_log =
 			velocity_gain_table[state->amp_velocity_cc][event->velocity];
+
+		for (voice_num = 1; voice_num < voice_count; voice_num++) {
+			if ( vnum[part_num] == voice_num ) continue;
+			loop_voice = get_voice(part_num, voice_num);
+			/* assign midi note */
+			loop_voice->midi_key   = part->midi_key;
+			loop_voice->keypressed = part->midi_key;
+			/* keep velocity for this note event */
+			loop_voice->velocity               = event->velocity;
+			loop_voice->velocity_target_linear = loop_voice->velocity_coef_linear =
+				part->velocity_target = part->velocity_coef = ((sample_t) event->velocity) * 0.01;
+			loop_voice->velocity_target_log    = loop_voice->velocity_coef_log =
+				velocity_gain_table[state->amp_velocity_cc][event->velocity];
+		}
 
 		if (event->velocity > 0) {
 			part->velocity = event->velocity;
@@ -279,6 +305,11 @@ process_note_on(MIDI_EVENT *event, unsigned int part_num)
 
 		/* process parameters dependent on keytrigger events */
 		process_keytrigger(event, old_voice, voice, part_num);
+		for (voice_num = 0; voice_num < voice_count; voice_num++) {
+			if ( vnum[part_num] == voice_num ) continue;
+			loop_voice = get_voice(part_num, voice_num);
+			process_keytrigger(event, old_voice, loop_voice, part_num);
+		}
 	}
 
 	/* velocity 0 style note off */
@@ -286,7 +317,6 @@ process_note_on(MIDI_EVENT *event, unsigned int part_num)
 		process_note_off(event, part_num);
 	}
 }
-
 
 /*****************************************************************************
  * process_note_off()
@@ -309,6 +339,7 @@ process_note_off(MIDI_EVENT *event, unsigned int part_num)
 	int             free_voice      = -1;
 	int             voice_num;
 	int             unlink;
+	int 			voice_count = 0;
 
 	switch (state->keymode) {
 	case KEYMODE_POLY:
@@ -363,6 +394,30 @@ process_note_off(MIDI_EVENT *event, unsigned int part_num)
 		}
 		break;
 
+	case KEYMODE_MONO_UNISON_4:
+		voice_count = 4;
+		vnum[part_num] = 0;
+		if (part->midi_key == event->note) {
+			keytrigger = 1;
+			old_voice = get_voice(part_num, vnum[part_num]);
+		}
+		break;
+	case KEYMODE_MONO_UNISON_6:
+		voice_count = 6;
+		vnum[part_num] = 0;
+		if (part->midi_key == event->note) {
+			keytrigger = 1;
+			old_voice = get_voice(part_num, vnum[part_num]);
+		}
+		break;
+	case KEYMODE_MONO_UNISON_8:
+		voice_count = 8;
+		vnum[part_num] = 0;
+		if (part->midi_key == event->note) {
+			keytrigger = 1;
+			old_voice = get_voice(part_num, vnum[part_num]);
+		}
+		break;
 	case KEYMODE_MONO_MULTIKEY:
 		/* mono multikey needs keytrigger activities on note off for
 		   resetting oscillator frequencies. */
@@ -471,6 +526,9 @@ process_note_off(MIDI_EVENT *event, unsigned int part_num)
 				velocity_gain_table[state->amp_velocity_cc][part->velocity];
 
 			/* intentional fall-through */
+		case KEYMODE_MONO_UNISON_4:
+		case KEYMODE_MONO_UNISON_6:
+		case KEYMODE_MONO_UNISON_8:
 		case KEYMODE_MONO_MULTIKEY:
 			keytrigger++;
 			break;
@@ -480,6 +538,12 @@ process_note_off(MIDI_EVENT *event, unsigned int part_num)
 	else {
 		voice->midi_key   = -1;
 		voice->keypressed = -1;
+		for (voice_num = 0; voice_num < voice_count; voice_num++) {
+			if ( vnum[part_num] == voice_num ) continue;
+			loop_voice = get_voice(part_num, voice_num);
+			loop_voice->midi_key = -1;
+			loop_voice->keypressed = -1;
+		}
 		part->head           = NULL;
 		if (!part->hold_pedal) {
 			part->midi_key       = -1;
@@ -488,6 +552,11 @@ process_note_off(MIDI_EVENT *event, unsigned int part_num)
 
 	if (keytrigger > 0) {
 		process_keytrigger(event, old_voice, voice, part_num);
+		for (voice_num = 0; voice_num < voice_count; voice_num++) {
+			if ( vnum[part_num] == voice_num ) continue;
+			loop_voice = get_voice(part_num, voice_num);
+			process_keytrigger(event, old_voice, loop_voice, part_num);
+		}
 	}
 }
 
@@ -604,6 +673,9 @@ process_keytrigger(MIDI_EVENT   *UNUSED(event),
 	case KEYMODE_MONO_RETRIGGER:
 		env_trigger = 1;
 		/* intentional fall-through */
+	case KEYMODE_MONO_UNISON_4:
+	case KEYMODE_MONO_UNISON_6:
+	case KEYMODE_MONO_UNISON_8:
 	case KEYMODE_MONO_MULTIKEY:
 	case KEYMODE_MONO_SMOOTH:
 		if (voice->cur_amp_interval >= ENV_INTERVAL_RELEASE) {
@@ -789,6 +861,9 @@ process_keytrigger(MIDI_EVENT   *UNUSED(event),
 					voice->osc_key[osc] = part->last_key;
 				}
 				break;
+			case KEYMODE_MONO_UNISON_4:
+			case KEYMODE_MONO_UNISON_6:
+			case KEYMODE_MONO_UNISON_8:
 			case KEYMODE_MONO_SMOOTH:
 			case KEYMODE_MONO_RETRIGGER:
 				/* default mono -- use key just pressed */
@@ -845,7 +920,10 @@ process_keytrigger(MIDI_EVENT   *UNUSED(event),
 					/* Mono modes set portamento on voice just finishing to
 					   match new voice. */
 					if ((state->keymode == KEYMODE_MONO_SMOOTH) ||
-					    (state->keymode == KEYMODE_MONO_RETRIGGER)) {
+					    (state->keymode == KEYMODE_MONO_RETRIGGER) ||
+					    (state->keymode == KEYMODE_MONO_UNISON_4) ||
+					    (state->keymode == KEYMODE_MONO_UNISON_6) ||
+					    (state->keymode == KEYMODE_MONO_UNISON_8)) {
 						old_voice->osc_portamento[osc] =
 							voice->osc_portamento[osc];
 						old_voice->portamento_sample   =
@@ -893,6 +971,9 @@ process_keytrigger(MIDI_EVENT   *UNUSED(event),
 				break;
 			case KEYMODE_MONO_SMOOTH:
 			case KEYMODE_MONO_RETRIGGER:
+			case KEYMODE_MONO_UNISON_4:
+			case KEYMODE_MONO_UNISON_6:
+			case KEYMODE_MONO_UNISON_8:
 				/* default mono -- use key just pressed */
 				part->lfo_key[lfo] = part->last_key;
 				break;
@@ -919,7 +1000,6 @@ process_keytrigger(MIDI_EVENT   *UNUSED(event),
 
 		}
 	}
-
 	/* allocate voice (engine actually activates allocated voices) */
 	voice->allocated = 1;
 }
@@ -1191,7 +1271,8 @@ process_phase_sync(MIDI_EVENT *event, unsigned int part_num)
 					halfsteps_to_freq_mult((tmp_1 *
 					                        state->freq_lfo_amount[osc]) +
 					                       part->osc_pitch_bend[osc] +
-					                       state->osc_transpose[osc]) *
+					                       state->osc_transpose[osc] +
+					                       state->voice_osc_tune[voice->id] ) *
 					voice->osc_freq[osc] * wave_period;
 
 				while (voice->index[osc] < 0.0) {
