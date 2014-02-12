@@ -1191,8 +1191,6 @@ alsa_pcm_wait_for_poll(snd_pcm_t *handle, struct pollfd *ufds, unsigned int coun
 			return 0;
 		}
 	}
-	/* never reached */
-	return 0;
 }
 
 

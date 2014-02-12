@@ -197,7 +197,7 @@ build_env_tables(void)
 		env = 1.0;
 		k = 0;
 		while (env > MINIMUM_GAIN) {
-			env -= (1.0 / (sample_t)(2 * env_table[j]));
+			env -= (1.0 / (sample_t)(1.5 * env_table[j]));
 			k++;
 		}
 		env_interval_dur[ENV_INTERVAL_DECAY][j] = k;

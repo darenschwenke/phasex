@@ -272,7 +272,7 @@
 #define PARAM_FILTER1_RELEASE       216
 
 /* Update NUM_PARAMS after adding or removing parameters */
-#define NUM_PARAMS                  216
+#define NUM_PARAMS                  217
 
 /* The following only behave like parameters for the help system */
 #define PARAM_MIDI_CHANNEL          217
@@ -286,7 +286,7 @@
 #define PARAM_PHASEX_HELP           223
 
 /* Update MAX_PARAMS after adding or removing parameters */
-#define MAX_PARAMS                  223
+#define MAX_PARAMS                  224
 #define NUM_HELP_PARAMS             MAX_PARAMS
 
 /* Parameter types */

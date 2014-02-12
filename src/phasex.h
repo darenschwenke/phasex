@@ -45,7 +45,7 @@
    3 for the newer multi-core and other incredibly fast chips.
    4 for switching almost entirely over to 64-bit math. */
 #if !defined(PHASEX_CPU_POWER)
-# define PHASEX_CPU_POWER               4
+# define PHASEX_CPU_POWER               2
 #endif
 
 /* Type to use for (almost) all floating point math. */
@@ -329,7 +329,6 @@ typedef float sample_t;
 /* Number of per-voice oscs, per-part lfos, per-part filters */
 #define NUM_OSCS                        4
 #define NUM_LFOS                        4
-#define NUM_VOICES                      16
 
 /* The Off/Velocity LFOs and Oscilators get their own slot */
 #define LFO_OFF                         NUM_LFOS

@@ -190,11 +190,11 @@ init_engine_internals(void)
 			}
 		}
 		for (j = 1; j < 24; j++) {
-					if ((REVERB_MAX >> j) == 1) {
-						reverb->bufsize_mask = ((1 << j) - 1);
-						break;
-					}
-				}
+			if ((REVERB_MAX >> j) == 1) {
+				reverb->bufsize_mask = ((1 << j) - 1);
+				break;
+			}
+		}
 	}
 
 	init_midi_processor();
@@ -320,17 +320,17 @@ init_engine_parameters(void)
 		}
 		/* initialize reverb */
 		state->reverb_bypass_cc = 1;
-		state->reverb_roomsize_cc = 0;
-		state->reverb_roomsize = 1.0;
-		state->reverb_damping_cc = 1.0;
-		state->reverb_damping = 1.0;
-		state->reverb_width = 1.0;
-		state->reverb_width_cc = 1.0;
+		state->reverb_roomsize_cc = 64;
+		state->reverb_roomsize = 0.5;
+		state->reverb_damping_cc = 64;
+		state->reverb_damping = 0.5;
+		state->reverb_width = 0.5;
+		state->reverb_width_cc = 64;
 		state->reverb_depth = 1.0;
-		state->reverb_depth_cc = 0.1;
+		state->reverb_depth_cc = 64;
 		state->reverb_mode_cc = 0;
 		state->reverb_mix_cc = 64;
-		state->reverb_mix = 0.5;                  /* delay input
+		state->reverb_mix = 0.5;
 
 		/* initialize pitch bend attrs */
 		part->pitch_bend_target = part->pitch_bend_base = 0.0;
@@ -402,12 +402,12 @@ init_engine_parameters(void)
 		}
 
 		/* now handle voice specific inits */
-		PHASEX_DEBUG(DEBUG_CLASS_ENGINE, "Assigning voices.\n");
 		for (voice_num = 0; voice_num < MAX_VOICES; voice_num++) {
 			voice = get_voice(part_num, voice_num);
-			voice->id = voice_num;
-			PHASEX_DEBUG(DEBUG_CLASS_ENGINE, "Assigning voices: %d, %d\n",voice->id,voice_num);
-			state->voice_osc_tune[voice_num] = 0.0;
+			voice->id = (int) voice_num;
+			state->voice_osc_tune[voice_num] = ((sample_t) state->voice_osc_tune_cc[voice_num] - 64.0 ) / 128.0;
+			state->voice_cutoff_tune[voice_num] = ((sample_t) state->voice_cutoff_tune_cc[voice_num] - 64.0 ) / 128.0;
+			state->voice_env_decay_tune[voice_num] = ((sample_t) state->voice_env_decay_tune_cc[voice_num] - 64.0 ) / 128.0;
 
 			/* init portamento and velocity */
 			voice->portamento_samples     = env_table[state->portamento];
@@ -556,54 +556,12 @@ init_engine_parameters(void)
 		}
 
 		/* mono gets voice 0 */
-		if (state->keymode != KEYMODE_POLY ) {
+		if (state->keymode != KEYMODE_POLY) {
 			voice = get_voice(part_num, 0);
 			voice->active    = 1;
 			voice->allocated = 1;
 		}
 	}
-	state->voice_osc_tune[1] = -5.0;
-	state->voice_osc_tune[2] = -3.0;
-	state->voice_osc_tune[3] = -2.0;
-	state->voice_osc_tune[4] = 11.0;
-	state->voice_osc_tune[5] = -9.0;
-	state->voice_osc_tune[6] =  2.0;
-	state->voice_osc_tune[7] = -7.0;
-	state->voice_osc_tune[9] = -5.0;
-	state->voice_osc_tune[10] = -3.0;
-	state->voice_osc_tune[11] = -2.0;
-	state->voice_osc_tune[12] = 11.0;
-	state->voice_osc_tune[13] = -9.0;
-	state->voice_osc_tune[14] =  2.0;
-	state->voice_osc_tune[15] = -7.0;
-	state->voice_cutoff_tune[1] = 11.0;
-	state->voice_cutoff_tune[2] = -3.0;
-	state->voice_cutoff_tune[3] = -9.0;
-	state->voice_cutoff_tune[4] =  7.0;
-	state->voice_cutoff_tune[5] = -5.0;
-	state->voice_cutoff_tune[6] = -13.0;
-	state->voice_cutoff_tune[7] = -2.0;
-	state->voice_cutoff_tune[9] = 11.0;
-	state->voice_cutoff_tune[10] = -3.0;
-	state->voice_cutoff_tune[11] = -9.0;
-	state->voice_cutoff_tune[12] =  7.0;
-	state->voice_cutoff_tune[13] = -5.0;
-	state->voice_cutoff_tune[14] = -13.0;
-	state->voice_cutoff_tune[15] = -2.0;
-	state->voice_env_decay_tune[1] = -9.0;
-	state->voice_env_decay_tune[2] =  7.0;
-	state->voice_env_decay_tune[3] =  15.0;
-	state->voice_env_decay_tune[4] = -11.0;
-	state->voice_env_decay_tune[5] = -13.0;
-	state->voice_env_decay_tune[6] = -5.0;
-	state->voice_env_decay_tune[7] =  2.0;
-	state->voice_env_decay_tune[9] = -9.0;
-	state->voice_env_decay_tune[10] =  7.0;
-	state->voice_env_decay_tune[11] =  15.0;
-	state->voice_env_decay_tune[12] = -11.0;
-	state->voice_env_decay_tune[13] = -13.0;
-	state->voice_env_decay_tune[14] = -5.0;
-	state->voice_env_decay_tune[15] =  2.0;
 }
 
 
@@ -642,6 +600,7 @@ engine_thread(void *arg)
 
 	PHASEX_DEBUG(DEBUG_CLASS_INIT, "Starting Engine Thread for Part %d  (sleep_time=%d)\n",
 	             (part_num + 1), engine_sleep_time);
+	             
 	/* set realtime scheduling and priority */
 	thread_id = pthread_self();
 	memset(&schedparam, 0, sizeof(struct sched_param));
@@ -1005,7 +964,7 @@ run_voice_envelopes(PART *part, PATCH_STATE *state, unsigned int part_num)
 	part->filter_env_max = 0.0;
 
 	/* generate envelopes for all voices on this part */
-for (voice_num = 0; voice_num < (unsigned int) setting_polyphony; voice_num++) {
+	for (voice_num = 0; voice_num < (unsigned int) setting_polyphony; voice_num++) {
 		voice = get_voice(part_num, voice_num);
 
 		/* skip over inactive voices */
@@ -1147,7 +1106,7 @@ run_voice_envelope(PART         *part,
 					/* (sample_t)voice->filter_env_dur[ENV_INTERVAL_DECAY]; */
 					(state->filter_sustain - voice->filter_env_raw) /
 					(sample_t) voice->filter_env_dur[ENV_INTERVAL_DECAY];
-				voice->filter_env_raw += voice->filter_env_delta[ENV_INTERVAL_DECAY] + state->voice_env_decay_tune[(int)voice->id];;
+				voice->filter_env_raw += voice->filter_env_delta[ENV_INTERVAL_DECAY]; // + state->voice_env_decay_tune[(int)voice->id];;
 				break;
 			case ENV_INTERVAL_DECAY:
 				/* move on to sustain */
@@ -1266,6 +1225,7 @@ void run_lfo(PART         *part,
 		else {
 			part->lfo_freq[lfo] = freq_table[state->patch_tune_cc][256 + part->lfo_key[lfo]];
 		}
+		
 		/* intentional fall-through */
 	case FREQ_BASE_TEMPO_KEYTRIG:
 	case FREQ_BASE_TEMPO:
@@ -1338,7 +1298,7 @@ run_voices(PART *part, PATCH_STATE *state, unsigned int part_num)
 	VOICE           *voice;
 	unsigned int    voice_num;
 
-		/* cycle through voices in play */
+	/* cycle through voices in play */
 	for (voice_num = 0; voice_num < (unsigned int) setting_polyphony; voice_num++) {
 		voice = get_voice(part_num, voice_num);
 

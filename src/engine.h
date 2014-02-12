@@ -52,10 +52,10 @@
 #define KEYMODE_MONO_SMOOTH         0
 #define KEYMODE_MONO_RETRIGGER      1
 #define KEYMODE_MONO_MULTIKEY       2
-#define KEYMODE_MONO_UNISON_4       3
-#define KEYMODE_MONO_UNISON_6       4
-#define KEYMODE_MONO_UNISON_8       5
-#define KEYMODE_POLY                6
+#define KEYMODE_POLY                3
+#define KEYMODE_MONO_UNISON_4       4
+#define KEYMODE_MONO_UNISON_6       5
+#define KEYMODE_MONO_UNISON_8       6
 
 /* Filter keyfollow modes */
 #define KEYFOLLOW_NONE              0
@@ -103,7 +103,7 @@ typedef struct voice {
 	short       vol_key;                    /* midi note to use for volume keyfollow */
 	short       osc_wave;                   /* internal value for osc wave num */
 	short       cur_amp_interval;           /* current interval within the envelope */
-	unsigned int         id;
+	int         id;
 	int         cur_amp_sample;             /* sample number within current envelope peice */
 	int         portamento_sample;          /* sample number within portamento */
 	int         portamento_samples;         /* portamento time in samples */

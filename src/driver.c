@@ -636,9 +636,7 @@ phasex_watchdog(void)
 				select_audio_driver(NULL, setting_audio_driver);
 			}
 			init_audio();
-			PHASEX_DEBUG(DEBUG_CLASS_ENGINE, "Audio initialized.\n");
 			if (sample_rate_changed) {
-				PHASEX_DEBUG(DEBUG_CLASS_ENGINE, "Sample Rate Changed.\n");
 				sample_rate_changed = 0;
 				build_filter_tables();
 				build_env_tables();

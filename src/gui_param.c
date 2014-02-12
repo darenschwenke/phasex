@@ -53,8 +53,8 @@
 #include "debug.h"
 
 
-int periodic_update_in_progress = 0;
-static gboolean control_held = 0;
+int periodic_update_in_progress = 0;\
+
 
 /*****************************************************************************
  * upadate_gui_param()
@@ -602,21 +602,13 @@ on_param_label_event(gpointer data1, gpointer data2)
 	case GDK_SCROLL:
 		switch (scroll->direction) {
 		case GDK_SCROLL_DOWN:
-			if (control_held == 1 && (gui_param->value.cc_val) > (gui_param->info->leap)) {
-				new_param_value(gui_param, param, ((gui_param->value.cc_val) - (gui_param->info->leap)));
-			} else if ( control_held == 1 && (gui_param->value.cc_val) <= (gui_param->info->leap) ) {
-				new_param_value(gui_param, param, 0);
-			} else if ( gui_param->value.cc_val > 0 ) {
+			if (gui_param->value.cc_val > 0) {
 				new_param_value(gui_param, param, (gui_param->value.cc_val - 1));
 			}
 			grab = 1;
 			break;
 		case GDK_SCROLL_UP:
-			if (control_held == 1 && (gui_param->value.cc_val) < ((gui_param->info->cc_limit) - (gui_param->info->leap))) {
-				new_param_value(gui_param, param, ((gui_param->value.cc_val) + (gui_param->info->leap)));
-			} else if (control_held == 1 && (gui_param->value.cc_val) >= ((gui_param->info->cc_limit) - (gui_param->info->leap))) {
-				new_param_value(gui_param, param, (gui_param->info->cc_limit));
-			} else if ((gui_param->value.cc_val) < (gui_param->info->cc_limit)) {
+			if ((gui_param->value.cc_val) < (gui_param->info->cc_limit)) {
 				new_param_value(gui_param, param, (gui_param->value.cc_val + 1));
 			}
 			grab = 1;
@@ -693,27 +685,9 @@ on_param_label_event(gpointer data1, gpointer data2)
 			break;
 		case GDK_Return:
 		case GDK_KP_Enter:
-			break;
-		case GDK_Control_L:
-		case GDK_Control_R:
-			fprintf(stderr, "Control held.\n");
-			control_held = 1;
-			break;
 		default:
 			break;
 		}
-		break;
-	case GDK_KEY_RELEASE:
-		switch (key->keyval) {
-		case GDK_Control_L:
-		case GDK_Control_R:
-			fprintf(stderr, "Control release.\n");
-			control_held = 0;
-			break;
-		default:
-			break;
-		}
-		break;
 	case GDK_ENTER_NOTIFY:
 		if (!key->keyval) {
 			gui_param->info->prelight = 1;
@@ -951,9 +925,10 @@ on_param_button_event(gpointer data1, gpointer data2, gpointer data3)
 			break;
 		case GDK_Return:
 		case GDK_KP_Enter:
+		default:
+
 			break;
 		}
-		break;
 	case GDK_ENTER_NOTIFY:
 		if (gui_param->info->prelight < 0) {
 			gui_param->info->prelight = button_num;
@@ -1018,7 +993,6 @@ create_param_input(GtkWidget *UNUSED(main_window),
 	GtkWidget       *hbox;
 	GtkWidget       *button_table;
 	GtkWidget       *button;
-	GtkWidget       *led;
 	GtkObject       *adj;
 	GSList          *button_group;
 	unsigned int    j;
