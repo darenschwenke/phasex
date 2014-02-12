@@ -168,10 +168,10 @@ char *keymode_names[] = {
 	"mono_smooth",
 	"mono_retrig",
 	"mono_multikey",
+	"poly",
 	"mono_unison4",
 	"mono_unison6",
 	"mono_unison8",
-	"poly",
 	NULL
 };
 
@@ -434,10 +434,10 @@ const char *keymode_labels[] = {
 	"MonoSmooth",
 	"MonoReTrig",
 	"MonoMulti ",
+	"Poly      ",
 	"MonoUni-4 ",
 	"MonoUni-6 ",
 	"MonoUni-8 ",
-	"Poly      ",
 	NULL
 };
 

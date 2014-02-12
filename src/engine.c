@@ -1106,7 +1106,7 @@ run_voice_envelope(PART         *part,
 					/* (sample_t)voice->filter_env_dur[ENV_INTERVAL_DECAY]; */
 					(state->filter_sustain - voice->filter_env_raw) /
 					(sample_t) voice->filter_env_dur[ENV_INTERVAL_DECAY];
-				voice->filter_env_raw += voice->filter_env_delta[ENV_INTERVAL_DECAY]; // + state->voice_env_decay_tune[(int)voice->id];;
+				voice->filter_env_raw += voice->filter_env_delta[ENV_INTERVAL_DECAY] + state->voice_env_decay_tune[(int)voice->id];
 				break;
 			case ENV_INTERVAL_DECAY:
 				/* move on to sustain */

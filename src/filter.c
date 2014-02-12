@@ -260,7 +260,7 @@ run_experimental_filter(VOICE *voice, PART *part, PATCH_STATE *state)
 	                       (part->lfo_out[2] * state->lfo_3_cutoff) +
 	                       (state->filter_env_amount * voice->filter_env_raw) -
 	                       part->filter_env_offset +
-	                       //state->voice_cutoff_tune[voice->id] +
+	                       state->voice_cutoff_tune[voice->id] +
 	                       state->filter_cutoff +
 	                       voice->filter_key_adj + 256.0) *
 	                      F_TUNING_RESOLUTION)) +
@@ -459,7 +459,7 @@ run_moog_filter(VOICE *voice, PART *part, PATCH_STATE *state)
 	                       (part->lfo_out[2] * state->lfo_3_cutoff) +
 	                       (state->filter_env_amount * voice->filter_env_raw) -
 	                       part->filter_env_offset +
-	                       //state->voice_cutoff_tune[voice->id] +
+	                       state->voice_cutoff_tune[voice->id] +
 	                       state->filter_cutoff +
 	                       voice->filter_key_adj + 256.0) *
 	                      F_TUNING_RESOLUTION)) +
@@ -658,7 +658,7 @@ run_filter(VOICE *voice, PART *part, PATCH_STATE *state)
 	                       (part->lfo_out[2] * state->lfo_3_cutoff) +
 	                       (state->filter_env_amount * voice->filter_env_raw) -
 	                       part->filter_env_offset +
-	                       //state->voice_cutoff_tune[voice->id] +
+	                       state->voice_cutoff_tune[voice->id] +
 	                       state->filter_cutoff +
 	                       voice->filter_key_adj + 256.0) *
 	                      F_TUNING_RESOLUTION)) +
